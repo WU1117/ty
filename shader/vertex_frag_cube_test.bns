@@ -1,0 +1,23 @@
+uniform mat4 uMVPMatrix;//总变换矩阵
+uniform mat4 uMMatrix;//变换矩阵
+uniform vec3 uCamera;//摄像机位置
+attribute vec3 aPosition;//顶点位置
+attribute vec3 aNormal;//顶点法向量
+varying vec3 vTextureCoord;//传递给片元着色器取样向量
+void main(){
+    gl_Position=uMVPMatrix*vec4(aPosition,1);//变换后的顶点位置
+    //计算变换后的方向量
+    vec3 tempNormal=aPosition+aNormal;
+    vec3 targetNormal=(uMMatrix*vec4(tempNormal,1)).xyz-(uMMatrix*vec4(aPosition,1)).xyz;
+    vec3 newNormal=normalize(targetNormal);
+    //计算视线向量
+    vec3 eye=-normalize(uCamera-(uMMatrix*vec4(aPosition,1)).xyz);
+    vTextureCoord=reflect(eye,newNormal);
+}
+<#BREAK_BN#>
+precision mediump float;
+varying vec3 vTextureCoord;
+uniform samplerCube sTexture;//纹理内容数据
+void main(){
+   gl_FragColor=textureCube(sTexture,vTextureCoord);
+}

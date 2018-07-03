@@ -1,0 +1,253 @@
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<title>宇飞</title>
+		<script type="text/javascript" src="js/util/Matrix.js"></script>
+		<script type="text/javascript" src="js/util/MatrixState.js"></script>	
+		<script type="text/javascript" src="js/util/GLUtil.js"></script>	
+		<script type="text/javascript" src="js/util/LoadShaderUtil.js"></script>
+		<script type="text/javascript" src="js/util/LoadObjUtil.js"></script>
+		<script type="text/javascript" src="js/util/ObjObject.js"></script>
+		<script type="text/javascript" src="js/util/LightManager.js"></script>
+		<script type="text/javascript" src="js/loadch.js"></script>
+		<script type="text/javascript" src="js/util/TextureRect.js"></script>
+		<script type="text/javascript" src="js/util/CameraMove.js"></script>
+		<script type="text/javascript" src="js/util/dyf.js"></script>
+		<script>
+			var endX;
+			var endY;
+			var shebei;
+            var  urlArr=//组织图片资源id数组
+            [
+                "pic/skycubemap_right.jpg",
+				"pic/skycubemap_left.jpg",
+				"pic/skycubemap_up_cube.jpg",
+				"pic/skycubemap_down_cube.jpg",
+				"pic/skycubemap_front.jpg",
+				"pic/skycubemap_back.jpg"
+            ];
+            var angdegElevation=0;//仰角
+			var angdegAzimuth=0;//方位角;
+            var down=false;
+            var mPreviousX=0;
+            var mPreviousY=0;
+            var SIZE=0.2;
+            var target=25;
+			var texId;//立方图纹理id
+			var texRect;
+            //摄像机的位置角度
+            var cx=0;
+            var cy=0;
+            var cz=25;
+            var upX=0;
+            var upY=1;
+            var upZ=0;
+			//GLES上下文
+			var gl;
+			//变换矩阵管理类对象
+			var ms=new MatrixState();
+			//要绘制的3D物体
+			var ooTri;
+			//着色器程序列表，集中管理
+			var shaderProgArray=new Array();
+			//纹理管理器
+			var texMap= new Array();
+			//初始化的方法
+			function start()
+			{
+				//获取GL上下文
+	        gl = initWebGLCanvas("bncanvas");
+	        if (!gl) //若获取GL上下文失败
+	        {
+	        	 alert("创建GLES上下文失败!");//显示错误提示信息
+	           return;
+	        }    
+	        //获取3D Canvas
+	        var canvas = document.getElementById('bncanvas');
+	        var width=window.innerWidth;
+	        var height=window.innerHeight;
+	        var bwidth=-width/2;
+	        if(width>=1366){//电脑
+                canvas.setAttribute("width",width);
+                canvas.setAttribute("height",height);
+                shebei=1;
+			}else{//手机
+				canvas.style.marginTop="50%";
+				canvas.style.marginTop="bwidth";
+                canvas.setAttribute("width",width);
+                canvas.setAttribute("height",width);
+                shebei=2;
+			}
+	        //设置视口
+	        gl.viewport(0, 0, canvas.width, canvas.height);
+	        //设置屏幕背景色RGBA
+	        gl.clearColor(0.0,0.0,0.0,1.0);  
+	        //初始化变换矩阵
+	        ms.setInitStack();
+	        //设置摄像机
+			ms.setCamera(cx,cy,cz,0,0,0,upX,upY,upZ);
+	        //设置投影参数
+	        ms.setProjectFrustum(-1,1,-1, 1, 2, 1000);//setProjectOrtho
+			//打开深度检测
+            gl.enable(gl.DEPTH_TEST);
+            //打开背面剪裁
+            gl.enable(gl.CULL_FACE);
+            //加载着色器程序
+            loadShaderFile("shader/vertex_frag_tex.bns",0);
+                loadShaderFile("shader/vertex_frag_cube_test.bns",1);
+            //加载天空盒图片
+             loadImageTexture(gl, "pic/skycubemap_back.jpg","skycubemap_back.jpg");
+             loadImageTexture(gl, "pic/skycubemap_left.jpg","skycubemap_left.jpg");
+             loadImageTexture(gl, "pic/skycubemap_right.jpg","skycubemap_right.jpg");
+             loadImageTexture(gl, "pic/skycubemap_down.jpg","skycubemap_down.jpg");
+             loadImageTexture(gl, "pic/skycubemap_up.jpg","skycubemap_up.jpg");
+             loadImageTexture(gl, "pic/skycubemap_front.jpg","skycubemap_front.jpg");
+             loadTexture(gl,urlArr);//加载立方图
+			 loadchObjFile("obj/ch.obj");
+             textinit();
+                if(shebei==2){
+                    document.addEventListener("touchstart",function(evt)
+                    {
+                        var touch=evt.touches[0];
+                        mPreviousX=touch.pageX;//获取触控点x坐标
+                        mPreviousY=touch.pageY;//获取触控点y坐标
+                        endX=touch.pageX;
+                        endY=touch.pageY;
+                        down=true;//按下鼠标标志位
+                    },false)
+                    document.addEventListener("touchmove",function(evt)//onmousemove
+                    {
+                        var touch=evt.touches[0];
+                        if(down)//按下鼠标
+                        {
+                            var moveX=touch.pageX;//获取移动点x坐标
+                            var moveY=touch.pageY;//获取移动点y坐标
+                            var dx = moveX- mPreviousX;//计算触控笔X位移
+                            var dy = moveY- mPreviousY;//计算触控笔y位移
+                            endX=touch.pageX;
+                            endY=touch.pageY;
+                            //不超过阈值不移动摄像机
+                            if(Math.abs(dx)<7&& Math.abs(dy)<7){
+                                return;
+                            }
+                            angdegAzimuth += dx * SIZE;//设置沿y轴旋转角度
+                            angdegElevation += dy * SIZE;//设置沿x轴旋转角度
+                            //将仰角限制在5～90度范围内
+                            angdegElevation = Math.max(angdegElevation,-90);
+                            angdegElevation = Math.min(angdegElevation, 0);
+                            //设置摄像机的位置
+                            cameraMove(angdegAzimuth,angdegElevation);
+                        }
+                        mPreviousX=touch.pageX;//获取移动点x坐标
+                        mPreviousY=touch.pageY;//获取移动点y坐标
+                    },false)
+                    document.addEventListener("touchend",function(evt)
+                    {
+                        endX=mPreviousX;//获取移动点x坐标
+                        endY=mPreviousY;//获取移动点y坐标
+                        down=false;//抬起鼠标标志位
+                    },false)
+                }else if(shebei==1){
+                    document.onmousedown = function(event)
+                    {
+                        mPreviousX=event.pageX;//获取触控点x坐标
+                        mPreviousY=event.pageY;//获取触控点y坐标
+                        down=true;//按下鼠标标志位
+                    }
+                    document.onmousemove = function(event)//onmousemove
+                    {
+                        if(down)//按下鼠标
+                        {
+                            var moveX=event.pageX;//获取移动点x坐标
+                            var moveY=event.pageY;//获取移动点y坐标
+                            var dx = moveX- mPreviousX;//计算触控笔X位移
+                            var dy = moveY- mPreviousY;//计算触控笔y位移
+                            //不超过阈值不移动摄像机
+                            if(Math.abs(dx)<7&& Math.abs(dy)<7){
+                                return;
+                            }
+                            angdegAzimuth += dx * SIZE;//设置沿y轴旋转角度
+                            angdegElevation += dy * SIZE;//设置沿x轴旋转角度
+                            //将仰角限制在5～90度范围内
+                            angdegElevation = Math.max(angdegElevation,-90);
+                            angdegElevation = Math.min(angdegElevation, 90);
+                            //设置摄像机的位置
+                            cameraMove(angdegAzimuth,angdegElevation);
+                        }
+                        mPreviousX=event.pageX;//获取移动点x坐标
+                        mPreviousY=event.pageY;//获取移动点y坐标
+                    }
+                    document.onmouseup = function(event)
+                    {
+                        mPreviousX=event.pageX;//获取移动点x坐标
+                        mPreviousY=event.pageY;//获取移动点y坐标
+                        down=false;//抬起鼠标标志位
+                    }
+                }
+             setInterval("drawFrame();",30);//定时调用drawFrame（）方法，每隔30s就调用一次
+			}
+			function drawFrame() {
+				 if(!texRect||!ooTri) {
+					alert("加载未完成");//提示信息
+					return;
+				}
+			//设置屏幕背景色RGBA
+	        gl.clearColor(0.0,0.0,0.0,1.0);  
+	        //清除着色缓冲与深度缓冲
+	        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                //坐标系推远
+                ms.pushMatrix();
+                ms.scale(0.2,0.2,0.2);
+                //绕Y轴、Z轴旋转
+                ooTri.drawSelf(ms,texId);
+                ms.popMatrix();
+                //绘制天空盒后面
+			 	ms.pushMatrix();
+                ms.translate(0, 0, -28+0.4);//-28+0.4
+                texRect.drawSelf(ms,texMap["skycubemap_back.jpg"]);
+                ms.popMatrix();
+                //绘制天空盒前面
+                ms.pushMatrix();
+                ms.translate(0, 0, 28-0.4);
+                ms.rotate(180, 0, 1, 0);
+                texRect.drawSelf(ms,texMap["skycubemap_front.jpg"]);
+                ms.popMatrix();
+                //绘制左墙
+                ms.pushMatrix();
+                ms.translate(-28+0.4, 0, 0);
+                ms.rotate(90, 0, 1, 0);
+                texRect.drawSelf(ms,texMap["skycubemap_left.jpg"]);
+                ms.popMatrix();
+                //绘制右墙
+                ms.pushMatrix();
+                ms.translate(28-0.4, 0, 0);
+                ms.rotate(-90, 0, 1, 0);
+                texRect.drawSelf(ms,texMap["skycubemap_right.jpg"]);
+                ms.popMatrix();
+                //绘制下墙
+                ms.pushMatrix();
+                ms.translate(0, -28+0.4, 0);
+                ms.rotate(-90, 1, 0, 0);
+                texRect.drawSelf(ms,texMap["skycubemap_down.jpg"]);
+                ms.popMatrix();
+                //绘制上墙
+                ms.pushMatrix();
+                ms.translate(0, 28-0.4, 0);
+                ms.rotate(90, 1, 0, 0);
+                texRect.drawSelf(ms,texMap["skycubemap_up.jpg"]);
+                ms.popMatrix();
+            }
+		</script>
+	</head>
+	<body onload="start();" >
+		<canvas  id="bncanvas">
+	    若看到这个文字，说明浏览器不支持WebGL!
+		</canvas>
+		<img id="myTexture1" src='pic/yf1.jpg' style="display:none"><!--图片改为了6个128*128的-->
+		<img id="myTexture2" src='pic/yf2.jpg'style="display:none"><br>
+		<img id="myTexture3" src='pic/yf3.jpg'style="display:none">
+		<img id="myTexture4" src='pic/yf4.jpg'style="display:none"><br>
+		<img id="myTexture5" src='pic/yf5.jpg'style="display:none">
+		<img id="myTexture6" src='pic/yf6.jpg'style="display:none">
+	</body>
+</html>

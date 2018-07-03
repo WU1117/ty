@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/js/loadch.js" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/js/util/GLUtil.js" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/js/util/LoadObjUtil.js" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/js/util/LoadShaderUtil.js" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/js/util/MatrixState.js" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/js/util/ObjObject.js" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/shader/vertex_frag_tex.bns" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/shader/新建文本文档.txt" charset="UTF-8" />
+  </component>
+</project>
