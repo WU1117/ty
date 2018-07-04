@@ -104,6 +104,17 @@
              loadImageTexture(gl, "pic/skycubemap_front.jpg","skycubemap_front.jpg");
              loadTexture(gl,urlArr);//加载立方图
 			 loadchObjFile("obj/ch.obj");
+				 function launchFullscreen(element) {  
+                if(element.requestFullscreen) {  
+                    element.requestFullscreen();  
+                } else if(element.mozRequestFullScreen) {  
+                    element.mozRequestFullScreen();  
+                } else if(element.webkitRequestFullscreen) {  
+                    element.webkitRequestFullscreen();  
+                } else if(element.msRequestFullscreen) {  
+                    element.msRequestFullscreen();  
+                }  
+            }  
              textinit();
                 if(shebei==2){
                     document.addEventListener("touchstart",function(evt)
@@ -120,6 +131,7 @@
                         var touch=evt.touches[0];
                         if(down)//按下鼠标
                         {
+				 launchFullscreen(document.getElementById("bncanvas"));
                             var moveX=touch.pageX;//获取移动点x坐标
                             var moveY=touch.pageY;//获取移动点y坐标
                             var dx = moveX- mPreviousX;//计算触控笔X位移
